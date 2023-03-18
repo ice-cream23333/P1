@@ -4,8 +4,38 @@
 #include "bits/stdc++.h"
 #include "filesystem"
 #include "./external/porter2_stemmer.h"
-std::map<std::string,int> final;
-std::vector<std::pair<std::string ,int>> sort_final;
+struct unit{
+    std::string name;
+    int times;
+    unit(const std::string& n,const int i){times=i;name=n;}
+};
+struct search_result{
+    int match_words=0;
+    int score=0;
+};
+std::map<std::string,std::vector<unit>> dict;
+std::map<std::string,search_result> final;
+std::vector<std::pair<std::string ,search_result>> sort_final;
+
+void load_dict(std::string& dict_base,std::map<std::string,std::vector<unit>>&dict)
+{
+    std::fstream f(dict_base+"/dict.txt",std::ios::in);
+    std::string word,trash;
+    while(f>>word) {
+        int size;
+        f>>size;
+        std::getline(f,trash);
+        int num;std::string arc;
+        for(int i=0;i<size;i++) {
+            std::getline(f,arc);
+            f>>num;
+            dict[word].emplace_back(arc,num);
+            std::getline(f,trash);
+        }
+    }
+
+}
+
 void string_split(std::string str,char split,std::vector<std::string>& tokens)
 {
     std::istringstream iss(str);
@@ -14,12 +44,15 @@ void string_split(std::string str,char split,std::vector<std::string>& tokens)
         tokens.push_back(token);
     return ;
 }
+
+
 int main()
 {
-    int threshold=60;
+    std::string dict_base("../dict");
+    int threshold=10;
     std::string words;
     std::vector<std::string> tokens;
-    std::string dict_base="../dict";
+    load_dict(dict_base,dict);
     std::cout<<"Enter the word you need to query(split them by space):"<<std::endl;
     std::getline(std::cin,words);
     string_split(words,' ',tokens);
@@ -27,24 +60,17 @@ int main()
     {
         Porter2Stemmer::trim(word);
         Porter2Stemmer::stem(word);
-        std::fstream f(dict_base+"/"+word+".txt",std::ios::in);
-        if(f.is_open())
-        {
-            std::string line;
-            std::vector<std::string> search_result;
-            while(std::getline(f,line))
-            {
-                string_split(line,'/',search_result);
-                final[search_result[0]]+=atoi(search_result[1].c_str())+100;
-                search_result.clear();
-            }
-        }
-        f.close();
+        for(auto &arc:dict[word])
+            final[arc.name].score+=arc.times,final[arc.name].match_words++;
     }
     for(auto &p:final)
-        sort_final.push_back(std::pair<std::string ,int>(p.first,p.second));
+        sort_final.push_back(std::pair<std::string ,search_result>(p.first,p.second));
     std::sort(sort_final.begin(),sort_final.end(),
-              [](std::pair<std::string,int> a,std::pair<std::string,int> b){return a.second>b.second;});
+              [](auto a,auto b){
+        return a.second.match_words==b.second.match_words?
+                a.second.score>b.second.score:
+                a.second.match_words>b.second.match_words;
+    });
     int i=0;
 
 

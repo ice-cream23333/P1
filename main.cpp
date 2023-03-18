@@ -3,10 +3,14 @@
 #include "bits/stdc++.h"
 using namespace std;
 namespace fs=std::filesystem;
-std::map<string,int> dict;
+struct unit{
+    string name;
+    int times;
+    unit(const string& n){times=1;name=n;}
+};
+std::map<string,vector<unit>> dict;
 
-
-void file_parser(ifstream& file,std::map<string,int>&dict)
+void file_parser(ifstream& file,std::map<string,vector<unit>>&dict,string articleName)
 {
     string temp,word;
     bool inword=0;
@@ -22,7 +26,11 @@ void file_parser(ifstream& file,std::map<string,int>&dict)
             {
                 Porter2Stemmer::trim(word);
                 Porter2Stemmer::stem(word);
-                dict[word]++;
+                if(word.size()==0) continue;
+                if(dict.count(word)==0||articleName!=(dict[word].end()-1)->name)
+                    dict[word].push_back(unit(articleName));
+                else
+                    (dict[word].end()-1)->times++;
                 inword=0,word.clear();
             }
 
@@ -30,14 +38,15 @@ void file_parser(ifstream& file,std::map<string,int>&dict)
     }
 }
 
-void load_dict(string& dict_base,std::map<string,int>&dict,string& filename)
+void load_dict(string& dict_base,std::map<string,vector<unit>>&dict)
 {
+    fstream f(dict_base+"/dict.txt",ios::out);
     for(auto &p:dict)
     {
         string word=p.first;
-        fstream f(dict_base+"/"+word+".txt",ios::out|ios::app);
-        f<<filename<<"/"<<p.second<<endl;
-        f.close();
+        f<<p.first<<endl<<p.second.size()<<endl;
+        for(auto &arc:p.second)
+            f<<arc.name<<endl<<arc.times<<endl;
     }
     return;
 }
@@ -56,12 +65,11 @@ int main()
         {
             string full_path=tv.path().string();
             ifstream file(full_path,ios::in);
-            file_parser(file,dict);
             string article_name=filename+" "+tv.path().filename().string();
-            load_dict(dict_base.string(),dict,article_name);
-            dict.clear();
+            file_parser(file,dict,article_name);
         }
     }
+    load_dict(dict_base.string(),dict);
     return 0;
 
 }
